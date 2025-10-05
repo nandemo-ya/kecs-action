@@ -4,11 +4,11 @@ set -e
 VERSION="${1:-latest}"
 
 # Detect OS and architecture
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+OS=$(uname -s)  # Darwin or Linux
 ARCH=$(uname -m)
 
 case $ARCH in
-  x86_64) KECS_ARCH="amd64" ;;
+  x86_64) KECS_ARCH="x86_64" ;;
   aarch64|arm64) KECS_ARCH="arm64" ;;
   *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
 esac
@@ -24,22 +24,42 @@ if [ "$VERSION" = "latest" ]; then
   echo "Latest version: $VERSION"
 fi
 
-# Download binary
-BINARY_NAME="kecs-${OS}-${KECS_ARCH}"
-URL="https://github.com/nandemo-ya/kecs/releases/download/${VERSION}/${BINARY_NAME}"
+# Remove 'v' prefix from version for archive name
+VERSION_NO_V="${VERSION#v}"
+
+# Construct archive name: kecs_VERSION_OS_ARCH.tar.gz
+ARCHIVE_NAME="kecs_${VERSION_NO_V}_${OS}_${KECS_ARCH}.tar.gz"
+URL="https://github.com/nandemo-ya/kecs/releases/download/${VERSION}/${ARCHIVE_NAME}"
 
 echo "Downloading KECS ${VERSION} for ${OS}/${KECS_ARCH}..."
+echo "Archive: ${ARCHIVE_NAME}"
 echo "URL: ${URL}"
 
-curl -L "$URL" -o /tmp/kecs
+# Download and extract
+curl -L "$URL" -o /tmp/kecs.tar.gz
 
-if [ ! -f /tmp/kecs ]; then
+if [ ! -f /tmp/kecs.tar.gz ]; then
   echo "Failed to download KECS"
   exit 1
 fi
 
-chmod +x /tmp/kecs
-sudo mv /tmp/kecs /usr/local/bin/kecs
+# Extract binary
+tar -xzf /tmp/kecs.tar.gz -C /tmp
+
+# Find the kecs binary (might be just 'kecs' in the archive)
+if [ -f /tmp/kecs ]; then
+  chmod +x /tmp/kecs
+  sudo mv /tmp/kecs /usr/local/bin/kecs
+elif [ -f /tmp/bin/kecs ]; then
+  chmod +x /tmp/bin/kecs
+  sudo mv /tmp/bin/kecs /usr/local/bin/kecs
+else
+  echo "Failed to find kecs binary in archive"
+  exit 1
+fi
+
+# Cleanup
+rm -f /tmp/kecs.tar.gz
 
 echo "KECS installed successfully:"
 kecs version
