@@ -19,6 +19,11 @@ jobs:
           ./scripts/install-kubectl.sh
           kubectl version --client
 
+      - name: Test k3d installation
+        run: |
+          ./scripts/install-k3d.sh
+          k3d version
+
       - name: Test KECS download
         run: |
           ./scripts/download-kecs.sh latest

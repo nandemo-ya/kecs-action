@@ -55,6 +55,10 @@ runs:
       shell: bash
       run: ${{ github.action_path }}/scripts/install-kubectl.sh
 
+    - name: Install k3d
+      shell: bash
+      run: ${{ github.action_path }}/scripts/install-k3d.sh
+
     - name: Download KECS CLI
       shell: bash
       run: |
