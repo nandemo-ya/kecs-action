@@ -14,9 +14,9 @@ case $ARCH in
 esac
 
 if [ "$VERSION" = "latest" ]; then
-  # Get latest release
+  # Get latest release (first item from releases list)
   echo "Fetching latest KECS release..."
-  VERSION=$(curl -s https://api.github.com/repos/nandemo-ya/kecs/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  VERSION=$(curl -s https://api.github.com/repos/nandemo-ya/kecs/releases | grep -m 1 '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
   if [ -z "$VERSION" ]; then
     echo "Failed to fetch latest version"
     exit 1
