@@ -124,8 +124,24 @@ Always use the cleanup action to ensure resources are properly deleted:
   uses: nandemo-ya/kecs-action/cleanup@v1
   with:
     instance-name: ${{ steps.kecs.outputs.instance-name }}
-    collect-logs: true  # Optional, default: true
+    collect-logs: 'true'  # Optional, default: false
+    log-directory: '.kecs-logs'  # Optional, default: .kecs-logs
 ```
+
+### Cleanup Inputs
+
+| Input | Description | Required | Default |
+|-------|-------------|----------|---------|
+| `instance-name` | KECS instance name to cleanup | Yes | - |
+| `collect-logs` | Collect logs before cleanup | No | `false` |
+| `log-directory` | Directory to save logs | No | `.kecs-logs` |
+
+When `collect-logs` is enabled, the action will:
+- Collect KECS control plane logs
+- Collect LocalStack logs
+- Collect Traefik logs
+- Collect pod statuses and cluster events
+- Upload logs as workflow artifacts (7-day retention)
 
 ## How It Works
 
