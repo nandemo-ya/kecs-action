@@ -54,8 +54,10 @@ jobs:
         run: |
           # Install AWS CLI if not present
           if ! command -v aws &> /dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y awscli
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            sudo ./aws/install
+            rm -rf aws awscliv2.zip
           fi
 
           # Configure dummy AWS credentials for local endpoint
@@ -109,9 +111,13 @@ jobs:
 
       - name: Test ECS API on custom port
         run: |
-          # Install AWS CLI
-          sudo apt-get update
-          sudo apt-get install -y awscli
+          # Install AWS CLI if not present
+          if ! command -v aws &> /dev/null; then
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            sudo ./aws/install
+            rm -rf aws awscliv2.zip
+          fi
 
           # Configure dummy AWS credentials for local endpoint
           export AWS_ACCESS_KEY_ID=test
