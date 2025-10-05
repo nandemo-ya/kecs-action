@@ -71,7 +71,7 @@ jobs:
       - name: Cleanup KECS
         if: always()
         run: |
-          kecs stop --name "${{ steps.kecs.outputs.instance-name }}" || true
+          kecs stop --instance "${{ steps.kecs.outputs.instance-name }}" || true
 
   test-custom-config:
     name: Test Custom Configuration
@@ -118,7 +118,7 @@ jobs:
       - name: Cleanup KECS
         if: always()
         run: |
-          kecs stop --name test-custom || true
+          kecs stop --instance test-custom || true
 
   test-version-specific:
     name: Test Specific KECS Version
@@ -131,13 +131,13 @@ jobs:
         uses: ./
         id: kecs
         with:
-          kecs-version: v0.0.1-beta.9
+          kecs-version: v0.0.1-beta.10
 
       - name: Verify KECS version
         run: |
-          kecs version | grep "0.0.1-beta.9"
+          kecs version | grep "0.0.1-beta.10"
 
       - name: Cleanup KECS
         if: always()
         run: |
-          kecs stop --name "${{ steps.kecs.outputs.instance-name }}" || true
+          kecs stop --instance "${{ steps.kecs.outputs.instance-name }}" || true
