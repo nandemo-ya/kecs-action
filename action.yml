@@ -78,20 +78,29 @@ runs:
           CMD="$CMD --additional-localstack-services ${{ inputs.additional-localstack-services }}"
         fi
 
-        # Temporarily disable GITHUB_ACTIONS to prevent K3dClusterManager from using mock mode
-        # Save original value
+        # Temporarily disable GITHUB_ACTIONS and CI to prevent K3dClusterManager from using mock mode
+        # K3dClusterManager checks both GITHUB_ACTIONS and CI environment variables
+        # Save original values
         ORIGINAL_GITHUB_ACTIONS="${GITHUB_ACTIONS:-}"
+        ORIGINAL_CI="${CI:-}"
         export GITHUB_ACTIONS=false
+        export CI=false
 
         # Start KECS
         echo "Running: $CMD"
         eval $CMD
 
-        # Restore original GITHUB_ACTIONS value
+        # Restore original environment variable values
         if [ -n "$ORIGINAL_GITHUB_ACTIONS" ]; then
           export GITHUB_ACTIONS="$ORIGINAL_GITHUB_ACTIONS"
         else
           unset GITHUB_ACTIONS
+        fi
+
+        if [ -n "$ORIGINAL_CI" ]; then
+          export CI="$ORIGINAL_CI"
+        else
+          unset CI
         fi
 
         # Get the actual instance name (either specified or auto-generated)
