@@ -76,8 +76,10 @@ jobs:
 
       - name: Cleanup KECS
         if: always()
-        run: |
-          kecs stop --instance "${{ steps.kecs.outputs.instance-name }}" || true
+        uses: ./cleanup
+        with:
+          instance-name: ${{ steps.kecs.outputs.instance-name }}
+          collect-logs: 'true'
 
   test-custom-config:
     name: Test Custom Configuration
@@ -131,8 +133,10 @@ jobs:
 
       - name: Cleanup KECS
         if: always()
-        run: |
-          kecs stop --instance test-custom || true
+        uses: ./cleanup
+        with:
+          instance-name: test-custom
+          collect-logs: 'true'
 
   test-version-specific:
     name: Test Specific KECS Version
@@ -153,5 +157,7 @@ jobs:
 
       - name: Cleanup KECS
         if: always()
-        run: |
-          kecs stop --instance "${{ steps.kecs.outputs.instance-name }}" || true
+        uses: ./cleanup
+        with:
+          instance-name: ${{ steps.kecs.outputs.instance-name }}
+          collect-logs: 'true'

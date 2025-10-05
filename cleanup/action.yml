@@ -1,0 +1,37 @@
+name: 'Cleanup KECS'
+description: 'Clean up KECS instance and optionally collect logs'
+branding:
+  icon: 'trash-2'
+  color: 'red'
+
+inputs:
+  instance-name:
+    description: 'KECS instance name to cleanup'
+    required: true
+  collect-logs:
+    description: 'Collect logs before cleanup'
+    required: false
+    default: 'false'
+  log-directory:
+    description: 'Directory to save logs'
+    required: false
+    default: '.kecs-logs'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Cleanup KECS Instance
+      shell: bash
+      run: |
+        ${{ github.action_path }}/../scripts/cleanup-kecs.sh \
+          "${{ inputs.instance-name }}" \
+          "${{ inputs.collect-logs }}" \
+          "${{ inputs.log-directory }}"
+
+    - name: Upload Logs
+      if: inputs.collect-logs == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: kecs-logs-${{ inputs.instance-name }}
+        path: ${{ inputs.log-directory }}
+        retention-days: 7
