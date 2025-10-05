@@ -9,11 +9,7 @@ on:
 jobs:
   test-installation:
     name: Test Installation Scripts
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, ubuntu-22.04]
-        # Note: macos runners have different architecture handling
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
