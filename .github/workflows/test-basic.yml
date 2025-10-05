@@ -2,7 +2,7 @@ name: Test Basic Installation
 
 on:
   push:
-    branches: [ main, feat/* ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -18,6 +18,11 @@ jobs:
         run: |
           ./scripts/install-kubectl.sh
           kubectl version --client
+
+      - name: Test k3d installation
+        run: |
+          ./scripts/install-k3d.sh
+          k3d version
 
       - name: Test KECS download
         run: |

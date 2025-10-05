@@ -55,6 +55,10 @@ runs:
       shell: bash
       run: ${{ github.action_path }}/scripts/install-kubectl.sh
 
+    - name: Install k3d
+      shell: bash
+      run: ${{ github.action_path }}/scripts/install-k3d.sh
+
     - name: Download KECS CLI
       shell: bash
       run: |
@@ -65,18 +69,38 @@ runs:
       id: start
       shell: bash
       run: |
-        INSTANCE="${{ inputs.instance-name }}"
-        if [ -z "$INSTANCE" ]; then
-          INSTANCE="actions-$(date +%s)"
+        # Build KECS start command
+        CMD="kecs start --api-port ${{ inputs.api-port }} --admin-port ${{ inputs.admin-port }} --timeout ${{ inputs.timeout }}"
+
+        # Add optional instance name if provided
+        if [ -n "${{ inputs.instance-name }}" ]; then
+          CMD="$CMD --instance ${{ inputs.instance-name }}"
         fi
 
-        # Start KECS with specified configuration
-        kecs start \
-          --instance "$INSTANCE" \
-          --api-port ${{ inputs.api-port }} \
-          --admin-port ${{ inputs.admin-port }} \
-          ${{ inputs.additional-localstack-services && format('--additional-localstack-services {0}', inputs.additional-localstack-services) || '' }} \
-          --timeout ${{ inputs.timeout }}
+        # Add optional additional-localstack-services if provided
+        if [ -n "${{ inputs.additional-localstack-services }}" ]; then
+          CMD="$CMD --additional-localstack-services ${{ inputs.additional-localstack-services }}"
+        fi
+
+        # Start KECS and capture output
+        echo "Running: $CMD"
+        KECS_OUTPUT=$(eval $CMD 2>&1)
+        echo "$KECS_OUTPUT"
+
+        # Get the actual instance name
+        if [ -n "${{ inputs.instance-name }}" ]; then
+          # Use specified instance name
+          INSTANCE="${{ inputs.instance-name }}"
+        else
+          # Extract auto-generated instance name from output
+          INSTANCE=$(echo "$KECS_OUTPUT" | grep -o "kecs stop --instance [^ ]*" | awk '{print $4}')
+          if [ -z "$INSTANCE" ]; then
+            echo "Failed to extract instance name from kecs start output"
+            exit 1
+          fi
+        fi
+
+        echo "Instance name: $INSTANCE"
 
         # Export outputs
         echo "instance-name=$INSTANCE" >> $GITHUB_OUTPUT
