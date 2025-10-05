@@ -65,13 +65,13 @@ runs:
       id: start
       shell: bash
       run: |
-        INSTANCE="${{ inputs.instance-name }}"
-        if [ -z "$INSTANCE" ]; then
-          INSTANCE="actions-$(date +%s)"
-        fi
-
         # Build KECS start command
-        CMD="kecs start --name $INSTANCE --api-port ${{ inputs.api-port }} --admin-port ${{ inputs.admin-port }} --timeout ${{ inputs.timeout }}"
+        CMD="kecs start --api-port ${{ inputs.api-port }} --admin-port ${{ inputs.admin-port }} --timeout ${{ inputs.timeout }}"
+
+        # Add optional instance name if provided
+        if [ -n "${{ inputs.instance-name }}" ]; then
+          CMD="$CMD --instance ${{ inputs.instance-name }}"
+        fi
 
         # Add optional additional-localstack-services if provided
         if [ -n "${{ inputs.additional-localstack-services }}" ]; then
@@ -81,6 +81,10 @@ runs:
         # Start KECS
         echo "Running: $CMD"
         eval $CMD
+
+        # Get the actual instance name (either specified or auto-generated)
+        # kecs list shows the most recent instance first
+        INSTANCE=$(kecs list --format json | jq -r '.[0].name')
 
         # Export outputs
         echo "instance-name=$INSTANCE" >> $GITHUB_OUTPUT
