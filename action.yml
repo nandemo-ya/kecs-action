@@ -86,9 +86,10 @@ runs:
         export GITHUB_ACTIONS=false
         export CI=false
 
-        # Start KECS
+        # Start KECS and capture output
         echo "Running: $CMD"
-        eval $CMD
+        KECS_OUTPUT=$(eval $CMD 2>&1)
+        echo "$KECS_OUTPUT"
 
         # Restore original environment variable values
         if [ -n "$ORIGINAL_GITHUB_ACTIONS" ]; then
@@ -103,9 +104,21 @@ runs:
           unset CI
         fi
 
-        # Get the actual instance name (either specified or auto-generated)
-        # kecs list shows the most recent instance first
-        INSTANCE=$(kecs list --format json | jq -r '.[0].name')
+        # Get the actual instance name from kecs start output
+        # Output contains: "To stop this instance: kecs stop --instance <name>"
+        if [ -n "${{ inputs.instance-name }}" ]; then
+          # Use specified instance name
+          INSTANCE="${{ inputs.instance-name }}"
+        else
+          # Extract auto-generated instance name from output
+          INSTANCE=$(echo "$KECS_OUTPUT" | grep -o "kecs stop --instance [^ ]*" | awk '{print $4}')
+          if [ -z "$INSTANCE" ]; then
+            echo "Failed to extract instance name from kecs start output"
+            exit 1
+          fi
+        fi
+
+        echo "Instance name: $INSTANCE"
 
         # Export outputs
         echo "instance-name=$INSTANCE" >> $GITHUB_OUTPUT
