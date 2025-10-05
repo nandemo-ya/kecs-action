@@ -58,6 +58,10 @@ jobs:
             sudo apt-get install -y awscli
           fi
 
+          # Configure dummy AWS credentials for local endpoint
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+
           # Test ListClusters API
           aws ecs list-clusters --region us-east-1
 
@@ -108,6 +112,10 @@ jobs:
           # Install AWS CLI
           sudo apt-get update
           sudo apt-get install -y awscli
+
+          # Configure dummy AWS credentials for local endpoint
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
 
           # Set custom endpoint
           export AWS_ENDPOINT_URL=http://localhost:6000
