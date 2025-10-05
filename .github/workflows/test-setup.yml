@@ -1,0 +1,143 @@
+name: Test KECS Setup
+
+on:
+  push:
+    branches: [ main, feat/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-basic-setup:
+    name: Test Basic KECS Setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup KECS
+        uses: ./
+        id: kecs
+
+      - name: Verify outputs
+        run: |
+          echo "Instance name: ${{ steps.kecs.outputs.instance-name }}"
+          echo "Endpoint: ${{ steps.kecs.outputs.endpoint }}"
+          echo "Admin endpoint: ${{ steps.kecs.outputs.admin-endpoint }}"
+          echo "Kubeconfig: ${{ steps.kecs.outputs.kubeconfig }}"
+
+          # Check outputs are not empty
+          test -n "${{ steps.kecs.outputs.instance-name }}"
+          test -n "${{ steps.kecs.outputs.endpoint }}"
+          test -n "${{ steps.kecs.outputs.admin-endpoint }}"
+          test -n "${{ steps.kecs.outputs.kubeconfig }}"
+
+      - name: Verify environment variables
+        run: |
+          echo "AWS_ENDPOINT_URL: $AWS_ENDPOINT_URL"
+          echo "KECS_ENDPOINT: $KECS_ENDPOINT"
+          echo "KECS_ADMIN_ENDPOINT: $KECS_ADMIN_ENDPOINT"
+          echo "KUBECONFIG: $KUBECONFIG"
+          echo "KECS_INSTANCE: $KECS_INSTANCE"
+
+          # Check environment variables are set
+          test -n "$AWS_ENDPOINT_URL"
+          test -n "$KECS_ENDPOINT"
+          test -n "$KECS_ADMIN_ENDPOINT"
+          test -n "$KUBECONFIG"
+          test -n "$KECS_INSTANCE"
+
+          # Verify they match outputs
+          test "$KECS_ENDPOINT" = "${{ steps.kecs.outputs.endpoint }}"
+          test "$KECS_INSTANCE" = "${{ steps.kecs.outputs.instance-name }}"
+
+      - name: Test ECS API
+        run: |
+          # Install AWS CLI if not present
+          if ! command -v aws &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y awscli
+          fi
+
+          # Test ListClusters API
+          aws ecs list-clusters --region us-east-1
+
+      - name: Test kubectl access
+        run: |
+          # Verify kubeconfig works
+          kubectl cluster-info
+          kubectl get nodes
+          kubectl get pods -n kecs-system
+
+      - name: Cleanup KECS
+        if: always()
+        run: |
+          kecs stop --name "${{ steps.kecs.outputs.instance-name }}" || true
+
+  test-custom-config:
+    name: Test Custom Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup KECS with custom config
+        uses: ./
+        id: kecs
+        with:
+          instance-name: test-custom
+          api-port: 6000
+          admin-port: 6001
+          additional-localstack-services: s3,dynamodb
+          timeout: 15m
+
+      - name: Verify custom configuration
+        run: |
+          # Check instance name
+          test "${{ steps.kecs.outputs.instance-name }}" = "test-custom"
+
+          # Check custom ports
+          test "${{ steps.kecs.outputs.endpoint }}" = "http://localhost:6000"
+          test "${{ steps.kecs.outputs.admin-endpoint }}" = "http://localhost:6001"
+
+      - name: Test health endpoint on custom port
+        run: |
+          curl -f http://localhost:6001/health
+
+      - name: Test ECS API on custom port
+        run: |
+          # Install AWS CLI
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+          # Set custom endpoint
+          export AWS_ENDPOINT_URL=http://localhost:6000
+
+          # Test API
+          aws ecs list-clusters --region us-east-1
+
+      - name: Cleanup KECS
+        if: always()
+        run: |
+          kecs stop --name test-custom || true
+
+  test-version-specific:
+    name: Test Specific KECS Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup KECS with specific version
+        uses: ./
+        id: kecs
+        with:
+          kecs-version: v0.0.1-beta.9
+
+      - name: Verify KECS version
+        run: |
+          kecs version | grep "0.0.1-beta.9"
+
+      - name: Cleanup KECS
+        if: always()
+        run: |
+          kecs stop --name "${{ steps.kecs.outputs.instance-name }}" || true

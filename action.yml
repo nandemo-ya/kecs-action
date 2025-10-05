@@ -70,13 +70,17 @@ runs:
           INSTANCE="actions-$(date +%s)"
         fi
 
-        # Start KECS with specified configuration
-        kecs start \
-          --instance "$INSTANCE" \
-          --api-port ${{ inputs.api-port }} \
-          --admin-port ${{ inputs.admin-port }} \
-          ${{ inputs.additional-localstack-services && format('--additional-localstack-services {0}', inputs.additional-localstack-services) || '' }} \
-          --timeout ${{ inputs.timeout }}
+        # Build KECS start command
+        CMD="kecs start --name $INSTANCE --api-port ${{ inputs.api-port }} --admin-port ${{ inputs.admin-port }} --timeout ${{ inputs.timeout }}"
+
+        # Add optional additional-localstack-services if provided
+        if [ -n "${{ inputs.additional-localstack-services }}" ]; then
+          CMD="$CMD --additional-localstack-services ${{ inputs.additional-localstack-services }}"
+        fi
+
+        # Start KECS
+        echo "Running: $CMD"
+        eval $CMD
 
         # Export outputs
         echo "instance-name=$INSTANCE" >> $GITHUB_OUTPUT
