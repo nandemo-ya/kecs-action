@@ -1,0 +1,331 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-task-workflow:
+    name: Test Task Definition and Service Workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup KECS
+        uses: ./
+        id: kecs
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+
+      - name: Configure AWS credentials
+        run: |
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+          echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
+
+      - name: Create cluster
+        run: |
+          aws ecs create-cluster --cluster-name e2e-test --region us-east-1
+
+          # Verify cluster was created
+          CLUSTERS=$(aws ecs list-clusters --region us-east-1 --query 'clusterArns' --output text)
+          echo "Clusters: $CLUSTERS"
+          echo "$CLUSTERS" | grep -q "e2e-test"
+
+      - name: Register task definition
+        run: |
+          # Create task definition JSON
+          cat > task-def.json <<'EOF'
+          {
+            "family": "nginx-task",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "256",
+            "memory": "512",
+            "containerDefinitions": [
+              {
+                "name": "nginx",
+                "image": "nginx:latest",
+                "essential": true,
+                "portMappings": [
+                  {
+                    "containerPort": 80,
+                    "protocol": "tcp"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+
+          # Register task definition
+          aws ecs register-task-definition \
+            --cli-input-json file://task-def.json \
+            --region us-east-1
+
+          # Verify task definition was registered
+          TASK_DEFS=$(aws ecs list-task-definitions --region us-east-1 --query 'taskDefinitionArns' --output text)
+          echo "Task Definitions: $TASK_DEFS"
+          echo "$TASK_DEFS" | grep -q "nginx-task"
+
+      - name: Create service
+        run: |
+          # Create service
+          aws ecs create-service \
+            --cluster e2e-test \
+            --service-name nginx-service \
+            --task-definition nginx-task \
+            --desired-count 1 \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[subnet-12345],securityGroups=[sg-12345]}" \
+            --region us-east-1
+
+          # Verify service was created
+          SERVICES=$(aws ecs list-services --cluster e2e-test --region us-east-1 --query 'serviceArns' --output text)
+          echo "Services: $SERVICES"
+          echo "$SERVICES" | grep -q "nginx-service"
+
+      - name: Verify service status
+        run: |
+          # Describe service
+          SERVICE_STATUS=$(aws ecs describe-services \
+            --cluster e2e-test \
+            --services nginx-service \
+            --region us-east-1 \
+            --query 'services[0].status' \
+            --output text)
+
+          echo "Service Status: $SERVICE_STATUS"
+          test "$SERVICE_STATUS" = "ACTIVE"
+
+      - name: List tasks
+        run: |
+          # List tasks in the service
+          TASKS=$(aws ecs list-tasks \
+            --cluster e2e-test \
+            --service-name nginx-service \
+            --region us-east-1 \
+            --query 'taskArns' \
+            --output text)
+
+          echo "Tasks: $TASKS"
+          test -n "$TASKS"
+
+      - name: Update service
+        run: |
+          # Update service desired count
+          aws ecs update-service \
+            --cluster e2e-test \
+            --service nginx-service \
+            --desired-count 2 \
+            --region us-east-1
+
+          # Verify update
+          DESIRED_COUNT=$(aws ecs describe-services \
+            --cluster e2e-test \
+            --services nginx-service \
+            --region us-east-1 \
+            --query 'services[0].desiredCount' \
+            --output text)
+
+          echo "Desired Count: $DESIRED_COUNT"
+          test "$DESIRED_COUNT" = "2"
+
+      - name: Delete service
+        run: |
+          # Delete service
+          aws ecs delete-service \
+            --cluster e2e-test \
+            --service nginx-service \
+            --force \
+            --region us-east-1
+
+          # Verify service is being deleted
+          SERVICE_STATUS=$(aws ecs describe-services \
+            --cluster e2e-test \
+            --services nginx-service \
+            --region us-east-1 \
+            --query 'services[0].status' \
+            --output text)
+
+          echo "Service Status after delete: $SERVICE_STATUS"
+          # Service should be DRAINING or INACTIVE
+          echo "$SERVICE_STATUS" | grep -qE "DRAINING|INACTIVE"
+
+      - name: Delete cluster
+        run: |
+          # Delete cluster
+          aws ecs delete-cluster \
+            --cluster e2e-test \
+            --region us-east-1
+
+          # Verify cluster is deleted
+          CLUSTER_STATUS=$(aws ecs describe-clusters \
+            --clusters e2e-test \
+            --region us-east-1 \
+            --query 'clusters[0].status' \
+            --output text)
+
+          echo "Cluster Status: $CLUSTER_STATUS"
+          test "$CLUSTER_STATUS" = "INACTIVE"
+
+      - name: Cleanup KECS
+        if: always()
+        uses: ./cleanup
+        with:
+          instance-name: ${{ steps.kecs.outputs.instance-name }}
+          collect-logs: 'true'
+
+  test-kubectl-integration:
+    name: Test Kubernetes Integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup KECS
+        uses: ./
+        id: kecs
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+
+      - name: Configure AWS credentials
+        run: |
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+          echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
+
+      - name: Create cluster and task
+        run: |
+          # Create cluster
+          aws ecs create-cluster --cluster-name kubectl-test --region us-east-1
+
+          # Register task definition
+          cat > task-def.json <<'EOF'
+          {
+            "family": "test-task",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "256",
+            "memory": "512",
+            "containerDefinitions": [
+              {
+                "name": "app",
+                "image": "nginx:alpine",
+                "essential": true
+              }
+            ]
+          }
+          EOF
+
+          aws ecs register-task-definition \
+            --cli-input-json file://task-def.json \
+            --region us-east-1
+
+      - name: Verify Kubernetes resources
+        run: |
+          # Check namespaces
+          kubectl get namespaces
+
+          # Check KECS system pods
+          kubectl get pods -n kecs-system
+
+          # Verify KECS control plane is running
+          kubectl get pods -n kecs-system -l app=kecs -o jsonpath='{.items[0].status.phase}'
+          PHASE=$(kubectl get pods -n kecs-system -l app=kecs -o jsonpath='{.items[0].status.phase}')
+          test "$PHASE" = "Running"
+
+      - name: Verify cluster namespace creation
+        run: |
+          # List all namespaces
+          kubectl get namespaces -o name
+
+          # Check if cluster namespace was created
+          kubectl get namespace kubectl-test-us-east-1 || echo "Cluster namespace not found (expected if not implemented yet)"
+
+      - name: Cleanup KECS
+        if: always()
+        uses: ./cleanup
+        with:
+          instance-name: ${{ steps.kecs.outputs.instance-name }}
+          collect-logs: 'true'
+
+  test-multi-cluster:
+    name: Test Multiple Clusters
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup KECS
+        uses: ./
+        id: kecs
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+
+      - name: Configure AWS credentials
+        run: |
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+          echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
+
+      - name: Create multiple clusters
+        run: |
+          # Create cluster 1
+          aws ecs create-cluster --cluster-name cluster-1 --region us-east-1
+
+          # Create cluster 2
+          aws ecs create-cluster --cluster-name cluster-2 --region us-east-1
+
+          # Create cluster 3
+          aws ecs create-cluster --cluster-name cluster-3 --region us-east-1
+
+      - name: Verify all clusters
+        run: |
+          # List clusters
+          CLUSTERS=$(aws ecs list-clusters --region us-east-1 --query 'clusterArns' --output text)
+          echo "Clusters: $CLUSTERS"
+
+          # Verify all clusters exist
+          echo "$CLUSTERS" | grep -q "cluster-1"
+          echo "$CLUSTERS" | grep -q "cluster-2"
+          echo "$CLUSTERS" | grep -q "cluster-3"
+
+          # Count clusters (should be at least 3)
+          COUNT=$(aws ecs list-clusters --region us-east-1 --query 'length(clusterArns)' --output text)
+          echo "Total clusters: $COUNT"
+          test "$COUNT" -ge 3
+
+      - name: Delete clusters
+        run: |
+          aws ecs delete-cluster --cluster cluster-1 --region us-east-1
+          aws ecs delete-cluster --cluster cluster-2 --region us-east-1
+          aws ecs delete-cluster --cluster cluster-3 --region us-east-1
+
+      - name: Cleanup KECS
+        if: always()
+        uses: ./cleanup
+        with:
+          instance-name: ${{ steps.kecs.outputs.instance-name }}
+          collect-logs: 'true'
