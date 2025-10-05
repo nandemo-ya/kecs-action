@@ -99,16 +99,36 @@ jobs:
 
       - name: Verify service status
         run: |
-          # Describe service
-          SERVICE_STATUS=$(aws ecs describe-services \
-            --cluster e2e-test \
-            --services nginx-service \
-            --region us-east-1 \
-            --query 'services[0].status' \
-            --output text)
+          # Wait for service to become ACTIVE (with timeout)
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
 
-          echo "Service Status: $SERVICE_STATUS"
-          test "$SERVICE_STATUS" = "ACTIVE"
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            SERVICE_STATUS=$(aws ecs describe-services \
+              --cluster e2e-test \
+              --services nginx-service \
+              --region us-east-1 \
+              --query 'services[0].status' \
+              --output text)
+
+            echo "Service Status: $SERVICE_STATUS (attempt $((ATTEMPT+1))/$MAX_ATTEMPTS)"
+
+            if [ "$SERVICE_STATUS" = "ACTIVE" ]; then
+              echo "✅ Service is ACTIVE"
+              exit 0
+            fi
+
+            if [ "$SERVICE_STATUS" != "PROVISIONING" ] && [ "$SERVICE_STATUS" != "ACTIVE" ]; then
+              echo "❌ Service entered unexpected state: $SERVICE_STATUS"
+              exit 1
+            fi
+
+            ATTEMPT=$((ATTEMPT+1))
+            sleep 2
+          done
+
+          echo "❌ Timeout waiting for service to become ACTIVE"
+          exit 1
 
       - name: List tasks
         run: |
