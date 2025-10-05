@@ -1,0 +1,87 @@
+name: Test Basic Installation
+
+on:
+  push:
+    branches: [ main, feat/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-installation:
+    name: Test Installation Scripts
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04]
+        # Note: macos runners have different architecture handling
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test kubectl installation
+        run: |
+          ./scripts/install-kubectl.sh
+          kubectl version --client
+
+      - name: Test KECS download
+        run: |
+          ./scripts/download-kecs.sh latest
+          kecs version
+
+  test-architecture:
+    name: Test Architecture Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test architecture detection in kubectl script
+        run: |
+          ARCH=$(uname -m)
+          echo "Detected architecture: $ARCH"
+
+          # Run installation
+          ./scripts/install-kubectl.sh
+
+          # Verify it works
+          kubectl version --client
+
+      - name: Test architecture detection in KECS script
+        run: |
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ARCH=$(uname -m)
+          echo "Detected OS: $OS"
+          echo "Detected architecture: $ARCH"
+
+          # Run installation
+          ./scripts/download-kecs.sh latest
+
+          # Verify it works
+          kecs version
+
+  test-script-errors:
+    name: Test Error Handling
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test kubectl script with already installed
+        run: |
+          # Install kubectl first
+          ./scripts/install-kubectl.sh
+
+          # Run again - should skip gracefully
+          ./scripts/install-kubectl.sh
+
+      - name: Test invalid KECS version (should fail gracefully)
+        run: |
+          # This should fail but with a clear error message
+          ./scripts/download-kecs.sh v999.999.999 || {
+            echo "Expected failure for invalid version - OK"
+            exit 0
+          }
+
+          # If it didn't fail, that's wrong
+          echo "Should have failed for invalid version"
+          exit 1
