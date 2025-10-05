@@ -78,9 +78,21 @@ runs:
           CMD="$CMD --additional-localstack-services ${{ inputs.additional-localstack-services }}"
         fi
 
+        # Temporarily disable GITHUB_ACTIONS to prevent K3dClusterManager from using mock mode
+        # Save original value
+        ORIGINAL_GITHUB_ACTIONS="${GITHUB_ACTIONS:-}"
+        export GITHUB_ACTIONS=false
+
         # Start KECS
         echo "Running: $CMD"
         eval $CMD
+
+        # Restore original GITHUB_ACTIONS value
+        if [ -n "$ORIGINAL_GITHUB_ACTIONS" ]; then
+          export GITHUB_ACTIONS="$ORIGINAL_GITHUB_ACTIONS"
+        else
+          unset GITHUB_ACTIONS
+        fi
 
         # Get the actual instance name (either specified or auto-generated)
         # kecs list shows the most recent instance first
