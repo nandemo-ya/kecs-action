@@ -1,0 +1,105 @@
+name: 'Setup KECS'
+description: 'Set up KECS (Kubernetes-based ECS Compatible Service) for testing'
+branding:
+  icon: 'box'
+  color: 'blue'
+
+inputs:
+  kecs-version:
+    description: 'KECS version to install'
+    required: false
+    default: 'latest'
+  instance-name:
+    description: 'KECS instance name'
+    required: false
+    default: ''  # Auto-generated if empty
+  api-port:
+    description: 'AWS API port'
+    required: false
+    default: '5373'
+  admin-port:
+    description: 'Admin API port'
+    required: false
+    default: '5374'
+  additional-localstack-services:
+    description: 'Additional LocalStack services (comma-separated)'
+    required: false
+    default: ''
+  timeout:
+    description: 'Timeout for cluster creation'
+    required: false
+    default: '10m'
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+
+outputs:
+  instance-name:
+    description: 'Actual KECS instance name'
+    value: ${{ steps.start.outputs.instance-name }}
+  endpoint:
+    description: 'KECS API endpoint URL'
+    value: ${{ steps.start.outputs.endpoint }}
+  admin-endpoint:
+    description: 'KECS admin endpoint URL'
+    value: ${{ steps.start.outputs.admin-endpoint }}
+  kubeconfig:
+    description: 'Path to kubeconfig file'
+    value: ${{ steps.start.outputs.kubeconfig }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install kubectl
+      shell: bash
+      run: ${{ github.action_path }}/scripts/install-kubectl.sh
+
+    - name: Download KECS CLI
+      shell: bash
+      run: |
+        VERSION="${{ inputs.kecs-version }}"
+        ${{ github.action_path }}/scripts/download-kecs.sh "$VERSION"
+
+    - name: Start KECS
+      id: start
+      shell: bash
+      run: |
+        INSTANCE="${{ inputs.instance-name }}"
+        if [ -z "$INSTANCE" ]; then
+          INSTANCE="actions-$(date +%s)"
+        fi
+
+        # Start KECS with specified configuration
+        kecs start \
+          --instance "$INSTANCE" \
+          --api-port ${{ inputs.api-port }} \
+          --admin-port ${{ inputs.admin-port }} \
+          ${{ inputs.additional-localstack-services && format('--additional-localstack-services {0}', inputs.additional-localstack-services) || '' }} \
+          --timeout ${{ inputs.timeout }}
+
+        # Export outputs
+        echo "instance-name=$INSTANCE" >> $GITHUB_OUTPUT
+        echo "endpoint=http://localhost:${{ inputs.api-port }}" >> $GITHUB_OUTPUT
+        echo "admin-endpoint=http://localhost:${{ inputs.admin-port }}" >> $GITHUB_OUTPUT
+
+        # Get kubeconfig
+        KUBECONFIG_PATH="/tmp/kecs-${INSTANCE}.kubeconfig"
+        kecs kubeconfig get "$INSTANCE" > "$KUBECONFIG_PATH"
+        echo "kubeconfig=$KUBECONFIG_PATH" >> $GITHUB_OUTPUT
+
+    - name: Verify KECS
+      shell: bash
+      run: |
+        ${{ github.action_path }}/scripts/verify-kecs.sh \
+          "${{ steps.start.outputs.endpoint }}" \
+          "${{ steps.start.outputs.admin-endpoint }}"
+
+    - name: Export Environment
+      shell: bash
+      run: |
+        echo "AWS_ENDPOINT_URL=${{ steps.start.outputs.endpoint }}" >> $GITHUB_ENV
+        echo "KECS_ENDPOINT=${{ steps.start.outputs.endpoint }}" >> $GITHUB_ENV
+        echo "KECS_ADMIN_ENDPOINT=${{ steps.start.outputs.admin-endpoint }}" >> $GITHUB_ENV
+        echo "KUBECONFIG=${{ steps.start.outputs.kubeconfig }}" >> $GITHUB_ENV
+        echo "KECS_INSTANCE=${{ steps.start.outputs.instance-name }}" >> $GITHUB_ENV
