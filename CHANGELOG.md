@@ -7,17 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2025-10-06
+
+Initial public release of KECS GitHub Action.
+
 ### Added
-- Initial release of KECS GitHub Action
 - Automatic KECS installation and cluster setup
-- Environment variable configuration (AWS_ENDPOINT_URL, KECS_ENDPOINT, etc.)
+- Environment variable configuration (AWS_ENDPOINT_URL, KECS_ENDPOINT, KECS_ADMIN_ENDPOINT, KUBECONFIG, KECS_INSTANCE)
 - Multi-platform support (amd64, arm64)
 - Cleanup action with optional log collection
 - Comprehensive E2E tests for ECS workflows
 - Support for additional LocalStack services
-- Custom port configuration
+- Custom port configuration (api-port, admin-port)
 - Debug mode for troubleshooting
 - Automatic k3d CLI installation
+- Version-specific KECS installation support
 
 ### Features
 - **Quick Setup**: Get KECS running in just a few lines
@@ -31,13 +35,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - E2E workflow examples
 - Troubleshooting guide
 - Cleanup action documentation
-
-## [1.0.0] - TBD
-
-Initial public release.
-
-### Added
-- KECS setup action
-- Cleanup action
-- Comprehensive documentation
-- E2E test coverage
+- Contributing guidelines
+- Changelog following Keep a Changelog format
