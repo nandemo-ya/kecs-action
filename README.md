@@ -1,5 +1,9 @@
 # KECS Action
 
+[![Test Setup](https://github.com/nandemo-ya/kecs-action/actions/workflows/test-setup.yml/badge.svg)](https://github.com/nandemo-ya/kecs-action/actions/workflows/test-setup.yml)
+[![E2E Tests](https://github.com/nandemo-ya/kecs-action/actions/workflows/test-e2e.yml/badge.svg)](https://github.com/nandemo-ya/kecs-action/actions/workflows/test-e2e.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 GitHub Action for setting up KECS (Kubernetes-based ECS Compatible Service) in your CI/CD workflows.
 
 ## Overview
@@ -248,7 +252,7 @@ jobs:
 
 ## License
 
-Apache License 2.0
+MIT License - see [LICENSE](LICENSE) file for details
 
 ## Related Projects
 
