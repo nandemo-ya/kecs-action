@@ -319,11 +319,31 @@ jobs:
           kubectl get namespaces
 
           # Check KECS system pods
+          echo "=== KECS system pods ==="
           kubectl get pods -n kecs-system
 
           # Verify KECS control plane is running
-          kubectl get pods -n kecs-system -l app=kecs -o jsonpath='{.items[0].status.phase}'
-          PHASE=$(kubectl get pods -n kecs-system -l app=kecs -o jsonpath='{.items[0].status.phase}')
+          echo "=== Checking KECS control plane status ==="
+
+          # Try different label selectors to find KECS pods
+          if kubectl get pods -n kecs-system -l app=kecs --no-headers 2>/dev/null | grep -q .; then
+            LABEL="app=kecs"
+          elif kubectl get pods -n kecs-system -l app.kubernetes.io/name=kecs --no-headers 2>/dev/null | grep -q .; then
+            LABEL="app.kubernetes.io/name=kecs"
+          elif kubectl get pods -n kecs-system --no-headers 2>/dev/null | grep -i kecs | head -1; then
+            echo "✅ KECS pods found (using generic search)"
+            PHASE=$(kubectl get pods -n kecs-system --no-headers | grep -i kecs | head -1 | awk '{print $3}')
+            echo "KECS control plane phase: $PHASE"
+            test "$PHASE" = "Running"
+            exit 0
+          else
+            echo "⚠️  No KECS control plane pods found, checking all pods:"
+            kubectl get pods -n kecs-system -o wide
+            exit 1
+          fi
+
+          PHASE=$(kubectl get pods -n kecs-system -l "$LABEL" -o jsonpath='{.items[0].status.phase}')
+          echo "KECS control plane phase: $PHASE (using label: $LABEL)"
           test "$PHASE" = "Running"
 
       - name: Verify cluster namespace creation
