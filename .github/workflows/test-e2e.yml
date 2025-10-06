@@ -189,6 +189,33 @@ jobs:
             exit 1
           fi
 
+      - name: Wait for tasks to stop
+        run: |
+          # Wait for all tasks to stop before deleting cluster
+          MAX_ATTEMPTS=60
+          ATTEMPT=0
+
+          echo "Waiting for tasks to stop..."
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            TASK_COUNT=$(aws ecs list-tasks \
+              --cluster e2e-test \
+              --region us-east-1 \
+              --query 'length(taskArns)' \
+              --output text)
+
+            echo "Running tasks: $TASK_COUNT (attempt $((ATTEMPT+1))/$MAX_ATTEMPTS)"
+
+            if [ "$TASK_COUNT" = "0" ]; then
+              echo "✅ All tasks stopped"
+              exit 0
+            fi
+
+            ATTEMPT=$((ATTEMPT+1))
+            sleep 2
+          done
+
+          echo "⚠️  Timeout waiting for tasks to stop, but continuing..."
+
       - name: Delete cluster
         run: |
           # Delete cluster
