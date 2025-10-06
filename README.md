@@ -75,11 +75,10 @@ jobs:
 
 The action automatically exports the following environment variables:
 
-- `AWS_ENDPOINT_URL`: KECS API endpoint
-- `KECS_ENDPOINT`: KECS API endpoint
-- `KECS_ADMIN_ENDPOINT`: KECS admin endpoint
-- `KUBECONFIG`: Path to kubeconfig file
-- `KECS_INSTANCE`: Instance name
+- `AWS_ENDPOINT_URL`: KECS API endpoint (for AWS CLI)
+- `KUBECONFIG`: Path to kubeconfig file (for kubectl access)
+
+For direct API access to KECS, use the `endpoint` output: `${{ steps.kecs.outputs.endpoint }}`
 
 ## Advanced Usage
 

@@ -123,7 +123,4 @@ runs:
       shell: bash
       run: |
         echo "AWS_ENDPOINT_URL=${{ steps.start.outputs.endpoint }}" >> $GITHUB_ENV
-        echo "KECS_ENDPOINT=${{ steps.start.outputs.endpoint }}" >> $GITHUB_ENV
-        echo "KECS_ADMIN_ENDPOINT=${{ steps.start.outputs.admin-endpoint }}" >> $GITHUB_ENV
         echo "KUBECONFIG=${{ steps.start.outputs.kubeconfig }}" >> $GITHUB_ENV
-        echo "KECS_INSTANCE=${{ steps.start.outputs.instance-name }}" >> $GITHUB_ENV

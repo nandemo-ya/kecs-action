@@ -34,21 +34,14 @@ jobs:
       - name: Verify environment variables
         run: |
           echo "AWS_ENDPOINT_URL: $AWS_ENDPOINT_URL"
-          echo "KECS_ENDPOINT: $KECS_ENDPOINT"
-          echo "KECS_ADMIN_ENDPOINT: $KECS_ADMIN_ENDPOINT"
           echo "KUBECONFIG: $KUBECONFIG"
-          echo "KECS_INSTANCE: $KECS_INSTANCE"
 
           # Check environment variables are set
           test -n "$AWS_ENDPOINT_URL"
-          test -n "$KECS_ENDPOINT"
-          test -n "$KECS_ADMIN_ENDPOINT"
           test -n "$KUBECONFIG"
-          test -n "$KECS_INSTANCE"
 
           # Verify they match outputs
-          test "$KECS_ENDPOINT" = "${{ steps.kecs.outputs.endpoint }}"
-          test "$KECS_INSTANCE" = "${{ steps.kecs.outputs.instance-name }}"
+          test "$AWS_ENDPOINT_URL" = "${{ steps.kecs.outputs.endpoint }}"
 
       - name: Test ECS API
         run: |
