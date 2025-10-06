@@ -180,6 +180,72 @@ Specify different ports:
     admin-port: 6001
 ```
 
+## Examples
+
+### Complete ECS Workflow
+
+```yaml
+name: ECS Deployment Test
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup KECS
+        uses: nandemo-ya/kecs-action@v1
+        id: kecs
+
+      - name: Configure AWS CLI
+        run: |
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+
+      - name: Create ECS cluster
+        run: aws ecs create-cluster --cluster-name my-cluster --region us-east-1
+
+      - name: Register task definition
+        run: |
+          cat > task-def.json <<EOF
+          {
+            "family": "my-app",
+            "networkMode": "awsvpc",
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "256",
+            "memory": "512",
+            "containerDefinitions": [
+              {
+                "name": "app",
+                "image": "nginx:latest",
+                "essential": true,
+                "portMappings": [{"containerPort": 80}]
+              }
+            ]
+          }
+          EOF
+          aws ecs register-task-definition --cli-input-json file://task-def.json --region us-east-1
+
+      - name: Create service
+        run: |
+          aws ecs create-service \
+            --cluster my-cluster \
+            --service-name my-service \
+            --task-definition my-app \
+            --desired-count 1 \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[subnet-123],securityGroups=[sg-123]}" \
+            --region us-east-1
+
+      - name: Cleanup KECS
+        if: always()
+        uses: nandemo-ya/kecs-action/cleanup@v1
+        with:
+          instance-name: ${{ steps.kecs.outputs.instance-name }}
+```
+
 ## License
 
 Apache License 2.0
